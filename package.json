@@ -1,0 +1,23 @@
+{
+  "name": "e-ink-terminal",
+  "version": "1.0.0",
+  "description": "E-ink optimized Terminal Dashboard",
+  "main": "bin/cli.js",
+  "bin": {
+    "e-ink-terminal": "bin/cli.js"
+  },
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build",
+    "start": "node bin/cli.js",
+    "start:backend": "cd backend && node server.js",
+    "start:frontend": "cd frontend && npm run dev -- --host"
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "express-basic-auth": "^1.2.1",
+    "node-pty": "0.10.1",
+    "socket.io": "^4.8.1"
+  }
+}

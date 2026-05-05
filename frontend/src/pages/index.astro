@@ -1,0 +1,359 @@
+---
+// index.astro
+---
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+		<title>E-ink Terminal</title>
+		<style>
+			/* Import xterm css */
+			@import '@xterm/xterm/css/xterm.css';
+
+			:root {
+				--bg-color: #ffffff;
+				--fg-color: #000000;
+				--border-width: 8px;
+			}
+			* {
+				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
+			}
+			body {
+				background-color: var(--bg-color);
+				color: var(--fg-color);
+				font-family: monospace;
+				display: flex;
+				flex-direction: column;
+				height: 100dvh; /* Use 100dvh for mobile browser toolbars */
+				overflow: hidden;
+				/* FORCE no anti-aliasing to remove gray dithering on e-ink! */
+				-webkit-font-smoothing: none;
+				-moz-osx-font-smoothing: grayscale;
+			}
+			#terminal-container {
+				flex: 1 1 0%;
+				position: relative;
+				overflow: hidden !important; 
+				min-height: 0; 
+				border-bottom: var(--border-width) solid var(--fg-color);
+				background-color: var(--bg-color);
+			}
+			/* Put xterm strictly inside the bounds without padding to prevent fitAddon math errors */
+			.xterm {
+				width: 100%;
+				height: 100%;
+			}
+			.xterm-viewport {
+				/* ensure viewport doesn't cause native scrollbars */
+				overflow-y: hidden !important; 
+			}
+			.xterm canvas {
+				image-rendering: pixelated;
+			}
+
+			#controls {
+				display: grid;
+				grid-template-columns: repeat(4, 1fr);
+				grid-template-rows: repeat(5, 1fr);
+				gap: var(--border-width);
+				background-color: var(--fg-color); /* Gaps form the borders */
+				height: 35dvh; 
+				flex-shrink: 0;
+			}
+			button {
+				background-color: var(--bg-color);
+				color: var(--fg-color);
+				font-size: 1.5rem; 
+				font-weight: 900;
+				font-family: sans-serif;
+				border: none;
+				cursor: pointer;
+				text-transform: uppercase;
+				touch-action: manipulation;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+			.btn-span-2 { grid-column: span 2; }
+			.btn-span-4 { grid-column: span 4; }
+
+			button:active {
+				background-color: var(--fg-color);
+				color: var(--bg-color);
+			}
+			.active-toggle {
+				background-color: var(--fg-color);
+				color: var(--bg-color);
+			}
+		</style>
+	</head>
+	<body>
+		<div id="terminal-container"></div>
+		<div id="controls">
+			<!-- Row 1: Numbers -->
+			<button id="btn-1">1</button>
+			<button id="btn-2">2</button>
+			<button id="btn-3">3</button>
+			<button id="btn-4">4</button>
+			<!-- Row 2 -->
+			<button id="btn-up" class="btn-span-2">↑ UP</button>
+			<button id="btn-down" class="btn-span-2">↓ DOWN</button>
+			<!-- Row 3 -->
+			<button id="btn-y" class="btn-span-2">Accept (Y)</button>
+			<button id="btn-n" class="btn-span-2">Deny (N)</button>
+			<!-- Row 4 -->
+			<button id="btn-enter" class="btn-span-2">Enter</button>
+			<button id="btn-ctrl-c" class="btn-span-2">Ctrl+C</button>
+			<!-- Row 5 -->
+			<button id="btn-scroll" class="active-toggle btn-span-2">Auto-Scroll: ON</button>
+			<button id="btn-sound" class="btn-span-2">🔕 Sound: OFF</button>
+		</div>
+
+		<script>
+			import { io } from "socket.io-client";
+			import { Terminal } from "@xterm/xterm";
+			import { FitAddon } from "@xterm/addon-fit";
+
+			// Connect to the same host serving this static file
+			const socket = io();
+
+			const terminalContainer = document.getElementById('terminal-container');
+			let autoScroll = true;
+
+			const eInkTheme = {
+				background: '#ffffff',
+				foreground: '#000000',
+				cursor: '#000000',
+				selectionBackground: '#cccccc',
+				black: '#000000',
+				red: '#000000',
+				green: '#000000',
+				yellow: '#000000',
+				blue: '#000000',
+				magenta: '#000000',
+				cyan: '#000000',
+				white: '#000000', 
+				brightBlack: '#000000',
+				brightRed: '#000000',
+				brightGreen: '#000000',
+				brightYellow: '#000000',
+				brightBlue: '#000000',
+				brightMagenta: '#000000',
+				brightCyan: '#000000',
+				brightWhite: '#000000'
+			};
+
+			const term = new Terminal({
+				theme: eInkTheme,
+				fontFamily: 'monospace', 
+				fontSize: 20, 
+				fontWeight: '900', 
+				cursorBlink: false,
+				disableStdin: true,
+				allowTransparency: false,
+				minimumContrastRatio: 21,
+				scrollback: 5000,
+				convertEol: true
+			});
+
+			const fitAddon = new FitAddon();
+			term.loadAddon(fitAddon);
+			term.open(terminalContainer);
+			
+			function resizeTerminal() {
+				fitAddon.fit();
+				socket.emit('terminal.resize', { cols: term.cols, rows: term.rows });
+			}
+
+			// Delay initial fit to ensure mobile browser toolbars are fully resolved
+			setTimeout(() => {
+				resizeTerminal();
+			}, 500);
+
+			let resizeTimeout;
+			window.addEventListener('resize', () => {
+				clearTimeout(resizeTimeout);
+				resizeTimeout = setTimeout(() => {
+					resizeTerminal();
+				}, 200);
+			});
+
+			socket.on('connect', () => {
+				resizeTerminal();
+				term.writeln(`\r\n[Connected to terminal server]`);
+			});
+
+			socket.on('disconnect', () => {
+				term.writeln('\r\n[Disconnected from backend]');
+			});
+
+			socket.on('terminal-status', (status) => {
+				term.writeln(`\r\n[System]: ${status}`);
+			});
+
+			let scrollDebounceTimer;
+			
+			// --- Audio Notification System ---
+			let audioCtx;
+			let soundEnabled = false;
+			let idleTimer;
+			let textBuffer = "";
+			let consecutiveBeeps = 0;
+			const promptRegex = /(?:\?|\(y\/n\)|\[y\/n\]|select|choose|>|:)\s*$/i;
+
+			function resetBeepCounter() {
+				consecutiveBeeps = 0;
+			}
+
+			function playNotificationSound() {
+				if (!soundEnabled) return;
+				try {
+					if (!audioCtx) {
+						const AudioContext = window.AudioContext || window.webkitAudioContext;
+						if (!AudioContext) {
+							console.log("AudioContext not supported on this browser.");
+							return;
+						}
+						audioCtx = new AudioContext();
+					}
+					if (audioCtx.state === 'suspended') audioCtx.resume();
+					
+					const oscillator = audioCtx.createOscillator();
+					const gainNode = audioCtx.createGain();
+					
+					oscillator.type = 'sine';
+					oscillator.frequency.value = 600; 
+					
+					const now = audioCtx.currentTime;
+					gainNode.gain.setValueAtTime(0, now);
+					gainNode.gain.linearRampToValueAtTime(1, now + 0.05);
+					gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.3); // Longer 300ms beep
+					
+					oscillator.connect(gainNode);
+					gainNode.connect(audioCtx.destination);
+					
+					oscillator.start(now);
+					oscillator.stop(now + 0.3);
+				} catch(e) {
+					console.error("Audio playback failed", e);
+				}
+			}
+			// ---------------------------------
+
+			socket.on('terminal-data', (data) => {
+				let mapped = data.replace(/\x1b\[(38|48);(5|2);[0-9;]+m/g, '');
+				
+				mapped = mapped.replace(/\x1b\[([0-9;]*)m/g, (match, p1) => {
+					if (!p1) return '\x1b[0m'; 
+					
+					let params = p1.split(';');
+					let newParams = [];
+					
+					for (let param of params) {
+						let code = parseInt(param || '0', 10);
+						
+						if (code === 31 || code === 91 || code === 33 || code === 93) {
+							newParams.push('1', '4');
+							continue;
+						}
+						
+						if ([0, 1, 2, 3, 4, 5, 9].includes(code)) {
+							newParams.push(code.toString());
+							continue;
+						}
+					}
+					
+					if (newParams.length === 0) return ''; 
+					
+					newParams = [...new Set(newParams)];
+					return `\x1b[${newParams.join(';')}m`;
+				});
+
+				// Smart scroll logic
+				const isAtBottom = term.buffer.active.viewportY >= term.buffer.active.baseY - 2;
+				term.write(mapped);
+				
+				if (autoScroll && isAtBottom) {
+					clearTimeout(scrollDebounceTimer);
+					scrollDebounceTimer = setTimeout(() => {
+						term.scrollToBottom();
+					}, 150);
+				}
+
+				// Idle Detector Logic
+				textBuffer += data;
+				if (textBuffer.length > 500) {
+					textBuffer = textBuffer.substring(textBuffer.length - 500);
+				}
+
+				clearTimeout(idleTimer);
+				idleTimer = setTimeout(() => {
+					if (!soundEnabled) return;
+					
+					// Strip all ANSI escape codes
+					let cleanText = textBuffer.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, '');
+					
+					// Remove trailing newlines but preserve inline trailing spaces if needed
+					cleanText = cleanText.replace(/\r?\n$/, '').trimEnd();
+
+					// Look for prompt symbols anywhere in the last 20 characters to ignore weird terminal spacing
+					if (/(?:\?|\(y\/n\)|\[y\/n\]|select|choose|>|:).{0,20}$/i.test(cleanText)) {
+						if (consecutiveBeeps < 3) {
+							playNotificationSound();
+							consecutiveBeeps++;
+						}
+						textBuffer = ""; // Reset buffer so it doesn't double-beep
+					}
+				}, 800);
+			});
+
+			// Control Panel Emitters
+			document.getElementById('btn-1').addEventListener('click', () => { resetBeepCounter(); socket.emit('terminal-input', '1'); });
+			document.getElementById('btn-2').addEventListener('click', () => { resetBeepCounter(); socket.emit('terminal-input', '2'); });
+			document.getElementById('btn-3').addEventListener('click', () => { resetBeepCounter(); socket.emit('terminal-input', '3'); });
+			document.getElementById('btn-4').addEventListener('click', () => { resetBeepCounter(); socket.emit('terminal-input', '4'); });
+
+			document.getElementById('btn-up').addEventListener('click', () => { resetBeepCounter(); socket.emit('terminal-input', '\x1b[A'); });
+			document.getElementById('btn-down').addEventListener('click', () => { resetBeepCounter(); socket.emit('terminal-input', '\x1b[B'); });
+			document.getElementById('btn-y').addEventListener('click', () => { resetBeepCounter(); socket.emit('terminal-input', 'y'); });
+			document.getElementById('btn-n').addEventListener('click', () => { resetBeepCounter(); socket.emit('terminal-input', 'n'); });
+			document.getElementById('btn-enter').addEventListener('click', () => { resetBeepCounter(); socket.emit('terminal-input', '\r'); });
+			document.getElementById('btn-ctrl-c').addEventListener('click', () => { resetBeepCounter(); socket.emit('terminal-input', '\x03'); });
+			
+			// Toggles
+			const btnScroll = document.getElementById('btn-scroll');
+			btnScroll.addEventListener('click', () => {
+				autoScroll = !autoScroll;
+				if (autoScroll) {
+					btnScroll.classList.add('active-toggle');
+					btnScroll.innerText = 'Auto-Scroll: ON';
+					term.scrollToBottom();
+				} else {
+					btnScroll.classList.remove('active-toggle');
+					btnScroll.innerText = 'Auto-Scroll: OFF';
+				}
+			});
+
+			const btnSound = document.getElementById('btn-sound');
+			btnSound.addEventListener('click', () => {
+				soundEnabled = !soundEnabled;
+				if (soundEnabled) {
+					btnSound.classList.add('active-toggle');
+					btnSound.innerText = '🔔 Sound: ON';
+					
+					// User gesture activates AudioContext
+					if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+					if (audioCtx.state === 'suspended') audioCtx.resume();
+					
+					playNotificationSound(); // Demo beep
+				} else {
+					btnSound.classList.remove('active-toggle');
+					btnSound.innerText = '🔕 Sound: OFF';
+				}
+			});
+		</script>
+	</body>
+</html>
