@@ -15,6 +15,8 @@ An interactive, high-contrast terminal dashboard optimized for Android E-reader 
 You can run this directly via `npx` (once published) or by cloning the repository:
 
 ```bash
+npx Nissorn/e-ink-terminal
+
 # Install dependencies
 npm install
 
