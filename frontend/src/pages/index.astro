@@ -56,17 +56,17 @@
 
 			#controls {
 				display: grid;
-				grid-template-columns: repeat(4, 1fr);
-				grid-template-rows: repeat(5, 1fr);
-				gap: var(--border-width);
-				background-color: var(--fg-color); /* Gaps form the borders */
+				grid-template-columns: repeat(20, 1fr);
+				grid-template-rows: repeat(6, 1fr);
+				gap: 4px; /* Reduced gap to save vertical space */
+				background-color: var(--fg-color);
 				height: 35dvh; 
 				flex-shrink: 0;
 			}
 			button {
 				background-color: var(--bg-color);
 				color: var(--fg-color);
-				font-size: 1.5rem; 
+				font-size: 1.2rem; /* Slightly reduced font-size */
 				font-weight: 900;
 				font-family: sans-serif;
 				border: none;
@@ -76,9 +76,11 @@
 				display: flex;
 				align-items: center;
 				justify-content: center;
+				padding: 2px; /* Minimal padding */
 			}
-			.btn-span-2 { grid-column: span 2; }
-			.btn-span-4 { grid-column: span 4; }
+			.btn-tab { grid-column: span 4; background-color: #eeeeee; font-size: 1rem; }
+			.btn-num { grid-column: span 5; }
+			.btn-large { grid-column: span 10; }
 
 			button:active {
 				background-color: var(--fg-color);
@@ -93,23 +95,34 @@
 	<body>
 		<div id="terminal-container"></div>
 		<div id="controls">
+			<!-- Row 0: Tmux Tabs -->
+			<button id="btn-w0" class="btn-tab">W0</button>
+			<button id="btn-w1" class="btn-tab">W1</button>
+			<button id="btn-w2" class="btn-tab">W2</button>
+			<button id="btn-w3" class="btn-tab">W3</button>
+			<button id="btn-w4" class="btn-tab">W4</button>
+
 			<!-- Row 1: Numbers -->
-			<button id="btn-1">1</button>
-			<button id="btn-2">2</button>
-			<button id="btn-3">3</button>
-			<button id="btn-4">4</button>
+			<button id="btn-1" class="btn-num">1</button>
+			<button id="btn-2" class="btn-num">2</button>
+			<button id="btn-3" class="btn-num">3</button>
+			<button id="btn-4" class="btn-num">4</button>
+
 			<!-- Row 2 -->
-			<button id="btn-up" class="btn-span-2">↑ UP</button>
-			<button id="btn-down" class="btn-span-2">↓ DOWN</button>
+			<button id="btn-up" class="btn-large">↑ UP</button>
+			<button id="btn-down" class="btn-large">↓ DOWN</button>
+
 			<!-- Row 3 -->
-			<button id="btn-y" class="btn-span-2">Accept (Y)</button>
-			<button id="btn-n" class="btn-span-2">Deny (N)</button>
+			<button id="btn-y" class="btn-large">Accept (Y)</button>
+			<button id="btn-n" class="btn-large">Deny (N)</button>
+
 			<!-- Row 4 -->
-			<button id="btn-enter" class="btn-span-2">Enter</button>
-			<button id="btn-ctrl-c" class="btn-span-2">Ctrl+C</button>
+			<button id="btn-enter" class="btn-large">Enter</button>
+			<button id="btn-ctrl-c" class="btn-large">Ctrl+C</button>
+
 			<!-- Row 5 -->
-			<button id="btn-scroll" class="active-toggle btn-span-2">Auto-Scroll: ON</button>
-			<button id="btn-sound" class="btn-span-2">🔕 Sound: OFF</button>
+			<button id="btn-scroll" class="active-toggle btn-large">Auto-Scroll</button>
+			<button id="btn-sound" class="btn-large">🔕 Sound: OFF</button>
 		</div>
 
 		<script>
@@ -311,6 +324,12 @@
 			});
 
 			// Control Panel Emitters
+			document.getElementById('btn-w0').addEventListener('click', () => { resetBeepCounter(); socket.emit('terminal-input', '\x020'); });
+			document.getElementById('btn-w1').addEventListener('click', () => { resetBeepCounter(); socket.emit('terminal-input', '\x021'); });
+			document.getElementById('btn-w2').addEventListener('click', () => { resetBeepCounter(); socket.emit('terminal-input', '\x022'); });
+			document.getElementById('btn-w3').addEventListener('click', () => { resetBeepCounter(); socket.emit('terminal-input', '\x023'); });
+			document.getElementById('btn-w4').addEventListener('click', () => { resetBeepCounter(); socket.emit('terminal-input', '\x024'); });
+
 			document.getElementById('btn-1').addEventListener('click', () => { resetBeepCounter(); socket.emit('terminal-input', '1'); });
 			document.getElementById('btn-2').addEventListener('click', () => { resetBeepCounter(); socket.emit('terminal-input', '2'); });
 			document.getElementById('btn-3').addEventListener('click', () => { resetBeepCounter(); socket.emit('terminal-input', '3'); });
