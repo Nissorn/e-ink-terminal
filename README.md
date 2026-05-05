@@ -51,12 +51,32 @@ set TERMINAL_PASSWORD=mypassword
 npm start
 ```
 
-### Windows (PowerShell):
-```powershell
-$env:TERMINAL_USER="myusername"
-$env:TERMINAL_PASSWORD="mypassword"
-npm start
+## Tmux Setup Guide (For New Users)
+
+This dashboard is designed to attach to a **tmux** session named `ai-agent`. Tmux allows your AI agents and terminal tasks to keep running even if you close your browser or disconnect from the dashboard.
+
+### 1. Create the AI Session
+Before starting the dashboard, open a terminal on your Mac and run:
+```bash
+tmux new -s ai-agent
 ```
+*If you already have a session running, the dashboard will attach to it automatically.*
+
+### 2. Setting up Windows (W0 to W4)
+The dashboard has a **Tab Bar** at the top (`W0` through `W4`). To make these work, you need to create windows inside your tmux session.
+
+While inside your `ai-agent` tmux session on your Mac:
+- **Create a new window:** Press `Ctrl+b` then `c`.
+- **Create up to 5 windows:** Repeat the create command until you have 5 windows (indexed 0 to 4).
+- **Run different tasks:** You can now run Claude Code in `W0`, GitHub Copilot in `W1`, and a system monitor in `W2`.
+
+### 3. Using the Dashboard Tabs
+Once your windows are created, you can use the `[ W0 ]` through `[ W4 ]` buttons on your E-reader to switch between them instantly. The dashboard handles the complex tmux shortcuts for you!
+
+### 4. Useful Tmux Shortcuts (On your Mac)
+- `Ctrl+b` then `d`: **Detach** (Leave the session running in the background and return to your normal terminal).
+- `tmux ls`: List all running sessions.
+- `tmux attach -t ai-agent`: Re-attach to the AI session from your Mac terminal.
 
 ## Deployment
 
